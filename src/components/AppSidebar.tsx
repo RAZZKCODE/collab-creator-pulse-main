@@ -1,19 +1,25 @@
 import { useState } from "react";
-import { 
-  LayoutDashboard, 
-  Search, 
-  Briefcase, 
-  Wallet, 
-  User, 
+import {
+  LayoutDashboard,
+  Search,
+  Briefcase,
+  Wallet,
+  User,
   Settings,
   TrendingUp,
   Users,
   BarChart3,
   Link2,
   HelpCircle,
-  LogOut
+  LogOut,
+  Crown,
+  Star,
+  Activity
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useUser } from "@/contexts/UserContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 import {
   Sidebar,
@@ -35,22 +41,24 @@ const creatorItems = [
   { title: "Wallet", url: "/wallet", icon: Wallet },
   { title: "Connected Accounts", url: "/accounts", icon: Link2 },
   { title: "Profile", url: "/profile", icon: User },
-  { title: "Settings", url: "/settings", icon: Settings }, // ✅ Added
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 const brandItems = [
   { title: "Brand Dashboard", url: "/brand", icon: TrendingUp },
   { title: "Manage Campaigns", url: "/brand/campaigns", icon: Briefcase },
   { title: "Analytics", url: "/brand/analytics", icon: BarChart3 },
-  { title: "Settings", url: "/settings", icon: Settings }, // ✅ Added
+  { title: "Creator Network", url: "/brand/creators", icon: Users },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 const adminItems = [
-  { title: "Admin Dashboard", url: "/admin", icon: Settings },
+  { title: "Admin Dashboard", url: "/admin", icon: Crown },
   { title: "Manage Users", url: "/admin/users", icon: Users },
   { title: "All Campaigns", url: "/admin/campaigns", icon: Briefcase },
   { title: "Payouts", url: "/admin/payouts", icon: Wallet },
-  { title: "Settings", url: "/settings", icon: Settings }, // ✅ Added
+  { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -60,12 +68,18 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
-  // Mock user role - in real app this would come from auth context
-  const userRole = "creator" as "creator" | "brand" | "admin";
+  // ✅ Use real user context instead of hardcoded role
+  const { user, logout } = useUser();
+
+  // Get user role from context or default to creator
+  const userRole = user?.is_admin ? "admin" : (user?.role === "brand" ? "brand" : "creator");
+
+  // Get display name
+  const displayName = user?.full_name || user?.username || user?.email?.split('@')[0] || 'Creator';
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive 
-      ? "bg-gradient-primary text-primary-foreground font-medium shadow-elegant" 
+    isActive
+      ? "bg-gradient-primary text-primary-foreground font-medium shadow-elegant"
       : "hover:bg-accent/50 transition-smooth";
 
   const getItems = () => {
@@ -76,11 +90,10 @@ export function AppSidebar() {
 
   const items = getItems();
 
-  // Mock logout function
+  // ✅ Real logout function using context
   const handleLogout = () => {
     console.log("Logging out user...");
-    // 🔹 Clear tokens or session here
-    // localStorage.removeItem("authToken");
+    logout();
     navigate("/login");
   };
 
@@ -106,6 +119,33 @@ export function AppSidebar() {
               <span className="text-white font-bold text-lg">C</span>
             </div>
           )}
+        </div>
+
+        {/* ✅ User Profile Section */}
+        <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10">
+          <div className="flex items-center space-x-3">
+            <Avatar className="w-8 h-8 border-2 border-white/20">
+              <AvatarImage src={user?.avatar_url || "https://i.pravatar.cc/40"} alt={displayName} />
+              <AvatarFallback className="bg-gradient-hero text-white text-sm">
+                {displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'CR'}
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {displayName}
+                </p>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge variant={userRole === "admin" ? "destructive" : userRole === "brand" ? "secondary" : "default"} className="text-xs">
+                    {userRole === "admin" && <Crown className="w-3 h-3 mr-1" />}
+                    {userRole === "brand" && <Star className="w-3 h-3 mr-1" />}
+                    {userRole === "creator" && <Activity className="w-3 h-3 mr-1" />}
+                    {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <SidebarGroup>
@@ -147,7 +187,7 @@ export function AppSidebar() {
             </div>
           </SidebarMenuButton>
 
-          {/* ✅ Logout Button */}
+          {/* ✅ Logout Button with proper styling */}
           <SidebarMenuButton
             className="rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-smooth cursor-pointer"
             onClick={handleLogout}

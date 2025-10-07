@@ -4,16 +4,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, User } from "lucide-react";
 import { useNavigate, Outlet } from "react-router-dom";
+import { useUser } from "@/contexts/UserContext";
 
-export function Layout() {
+function Layout() {
   const navigate = useNavigate();
+  const { user, logout } = useUser();
 
   const handleLogout = () => {
     console.log("User logged out");
-    // 🔹 Clear auth token / session
-    localStorage.removeItem("authToken");
+    logout();
     navigate("/login");
   };
+
+  // Get display name - prefer full_name, fallback to username, then email
+  const displayName = user?.full_name || user?.username || user?.email?.split('@')[0] || 'Creator';
 
   return (
     <SidebarProvider>
@@ -33,18 +37,20 @@ export function Layout() {
               </h1>
             </div>
 
-            {/* Right Side (User Info + Dropdown) */}
-            <div className="flex items-center space-x-4">
-              <span className="hidden md:block text-sm text-muted-foreground">
-                Welcome back, <span className="font-medium text-foreground">Creator</span> 👋
+                        {/* Right Side (User Info + Dropdown) */}
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+              <span className="hidden sm:block text-xs sm:text-sm text-muted-foreground">
+                Welcome back, <span className="font-medium text-foreground">{displayName}</span> 👋
               </span>
 
               {/* User Avatar + Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Avatar className="cursor-pointer border shadow-sm">
-                    <AvatarImage src="https://i.pravatar.cc/40" alt="User" />
-                    <AvatarFallback>CR</AvatarFallback>
+                    <AvatarImage src={user?.avatar_url || "https://i.pravatar.cc/40"} alt={displayName} />
+                    <AvatarFallback>
+                      {displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'CR'}
+                    </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -75,3 +81,6 @@ export function Layout() {
     </SidebarProvider>
   );
 }
+
+// ✅ ADD THIS DEFAULT EXPORT
+export default Layout;

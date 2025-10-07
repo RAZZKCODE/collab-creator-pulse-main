@@ -1,6 +1,7 @@
 // backend/routes/campaignRoutes.js
 import express from "express";
 import pool from "../config/db.js";
+import { authenticate, requireAdmin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ const normalizeCampaignRow = (row) => {
   return normalized;
 };
 
-// GET all
+// GET all (public)
 router.get("/", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM campaigns ORDER BY id DESC");
@@ -43,7 +44,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET single
+// GET single (public)
 router.get("/:id", async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid campaign id" });
@@ -57,8 +58,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// CREATE
-router.post("/", async (req, res) => {
+// CREATE (admin)
+router.post("/", authenticate, requireAdmin, async (req, res) => {
   try {
     const {
       title, description, brand_name, logo_url, budget_total, budget_used,
@@ -89,7 +90,7 @@ router.post("/", async (req, res) => {
         status || "active",
         start_date || null,
         end_date || null,
-        created_by || null,
+        created_by || req.user?.userId || null,
       ]
     );
 
@@ -100,8 +101,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// UPDATE
-router.put("/:id", async (req, res) => {
+// UPDATE (admin)
+router.put("/:id", authenticate, requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid campaign id" });
 
@@ -142,8 +143,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// FINISH (MOVE) - atomic
-router.put("/:id/finish", async (req, res) => {
+// FINISH (MOVE) - admin only
+router.put("/:id/finish", authenticate, requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid campaign id" });
 
@@ -180,8 +181,8 @@ router.put("/:id/finish", async (req, res) => {
   }
 });
 
-// DELETE
-router.delete("/:id", async (req, res) => {
+// DELETE (admin)
+router.delete("/:id", authenticate, requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid campaign id" });
 
@@ -192,6 +193,123 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     console.error("Error deleting campaign:", err.stack || err);
     res.status(500).json({ error: "Server error while deleting campaign", details: err.message });
+  }
+});
+
+// JOIN CAMPAIGN (user joins a campaign) - FIXED
+router.post("/:id/join", authenticate, async (req, res) => {
+  const campaignId = Number(req.params.id);
+  console.log("Join attempt for campaign:", campaignId, "by user:", req.user.userId);
+  
+  if (!Number.isInteger(campaignId)) {
+    return res.status(400).json({ error: "Invalid campaign id" });
+  }
+
+  try {
+    // Check if campaign exists
+    const campaignResult = await pool.query("SELECT * FROM campaigns WHERE id=$1", [campaignId]);
+    if (campaignResult.rows.length === 0) {
+      return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    const campaign = campaignResult.rows[0];
+
+    // Check if campaign is active
+    if (campaign.status !== "active") {
+      return res.status(400).json({ error: "Campaign is not active" });
+    }
+
+    // Check if user already joined this campaign (check user_campaigns table)
+    const existingResult = await pool.query(
+      "SELECT id FROM user_campaigns WHERE campaign_id=$1 AND user_id=$2 LIMIT 1",
+      [campaignId, req.user.userId]
+    );
+
+    if (existingResult.rows.length > 0) {
+      return res.status(400).json({ error: "Already joined this campaign" });
+    }
+
+    // Create a "joined" record in user_campaigns table
+    const result = await pool.query(
+      `INSERT INTO user_campaigns (campaign_id, user_id, joined_at)
+       VALUES ($1, $2, NOW()) RETURNING *`,
+      [campaignId, req.user.userId]
+    );
+
+    console.log("Successfully joined campaign:", result.rows[0]);
+    res.json({ message: "Successfully joined campaign!", participant: result.rows[0] });
+  } catch (err) {
+    console.error("Error joining campaign:", err.stack || err);
+    res.status(500).json({ error: "Server error while joining campaign", details: err.message });
+  }
+});
+
+// GET USER'S JOINED CAMPAIGNS - FIXED
+router.get("/user/me", authenticate, async (req, res) => {
+  try {
+    console.log("Fetching campaigns for user:", req.user?.userId);
+    
+    // First check if user exists and is authenticated
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    // Get campaigns where user has joined (from user_campaigns table)
+    const result = await pool.query(`
+      SELECT 
+        c.id, c.title, c.description, c.brand_name, c.logo_url,
+        c.budget_total, c.budget_used, c.rate_per_million,
+        c.max_submissions, c.max_earnings_per_creator, c.platforms,
+        c.status, c.start_date, c.end_date, c.created_by,
+        c.created_at, c.updated_at,
+        uc.joined_at as date_joined, uc.status as participation_status
+      FROM campaigns c
+      INNER JOIN user_campaigns uc ON c.id = uc.campaign_id
+      WHERE uc.user_id = $1 AND uc.status = 'active'
+      ORDER BY uc.joined_at DESC
+    `, [req.user.userId]);
+
+    console.log("Found campaigns:", result.rows.length);
+
+    const campaigns = result.rows.map(row => {
+      const normalized = normalizeCampaignRow(row);
+      
+      // Add user-specific data
+      return {
+        id: normalized.id,
+        title: normalized.title,
+        logo: normalized.logo_url,
+        description: normalized.description,
+        brand_name: normalized.brand_name,
+        budget_total: normalized.budget_total,
+        budget_used: normalized.budget_used,
+        rate_per_million: normalized.rate_per_million,
+        max_submissions: normalized.max_submissions,
+        max_earnings_per_creator: normalized.max_earnings_per_creator,
+        platforms: normalized.platforms,
+        status: normalized.status,
+        start_date: normalized.start_date,
+        end_date: normalized.end_date,
+        created_by: normalized.created_by,
+        created_at: normalized.created_at,
+        updated_at: normalized.updated_at,
+        
+        // User-specific data
+        joined_at: row.date_joined,
+        participation_status: row.participation_status,
+        views: 0, // Default values for joined campaigns
+        earnings: 0,
+        budgetTotal: normalized.budget_total,
+        user_submissions: 0,
+        completion: 0
+      };
+    });
+
+    console.log("Returning campaigns:", campaigns.length);
+    res.json({ campaigns });
+  } catch (err) {
+    console.error("Error fetching user campaigns:", err);
+    res.status(500).json({ error: "Server error while fetching user campaigns", details: err.message });
   }
 });
 

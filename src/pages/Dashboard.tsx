@@ -16,8 +16,9 @@ import {
   ArrowUpRight,
   Clock
 } from "lucide-react";
+import { AnimatedNumber, AnimatedCurrency, AnimatedPercentage } from "@/components/AnimatedCounter";
 
-// Mock data
+// Updated Mock data with animated values
 const stats = [
   {
     title: "Total Earnings",
@@ -26,6 +27,8 @@ const stats = [
     changeType: "positive" as const,
     icon: DollarSign,
     gradient: true,
+    animatedValue: 2847.32,
+    format: "currency" as const,
   },
   {
     title: "Total Views",
@@ -33,6 +36,8 @@ const stats = [
     change: "+5.2% from last month",
     changeType: "positive" as const,
     icon: Eye,
+    animatedValue: 2800000,
+    format: "number" as const,
   },
   {
     title: "Active Campaigns",
@@ -40,6 +45,8 @@ const stats = [
     change: "+2 this week",
     changeType: "positive" as const,
     icon: Video,
+    animatedValue: 8,
+    format: "number" as const,
   },
   {
     title: "Completion Rate",
@@ -47,6 +54,8 @@ const stats = [
     change: "+3% from last month",
     changeType: "positive" as const,
     icon: TrendingUp,
+    animatedValue: 92,
+    format: "percentage" as const,
   },
 ];
 
@@ -121,10 +130,26 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - With Animation */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => (
-          <StatsCard key={index} {...stat} />
+          <StatsCard 
+            key={index} 
+            title={stat.title}
+            value={
+              stat.format === "currency" ? (
+                <AnimatedCurrency value={stat.animatedValue} className="text-2xl font-bold" />
+              ) : stat.format === "percentage" ? (
+                <AnimatedPercentage value={stat.animatedValue} className="text-2xl font-bold" />
+              ) : (
+                <AnimatedNumber value={stat.animatedValue} className="text-2xl font-bold" />
+              )
+            }
+            change={stat.change}
+            changeType={stat.changeType}
+            icon={stat.icon}
+            gradient={stat.gradient}
+          />
         ))}
       </div>
 

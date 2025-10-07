@@ -1,4 +1,4 @@
-// frontend/src/components/Login.tsx
+// src/pages/Signup.tsx
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,56 +6,62 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
+import { API_BASE, parseError } from "@/utils/api";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
-export default function Login() {
+
+export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
+    
+    // ✅ Add validation
+    if (!email || !password || !username) {
+      toast.error("Please fill all fields");
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
+      console.log("🔍 Signup attempt:", { email, username });
+      
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // include credentials only if server sets HttpOnly cookie and requires CORS credentials
-        // credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, username }),
       });
 
+      console.log("📡 Response status:", res.status);
+
       if (!res.ok) {
-        const txt = await res.text();
-        let msg = txt;
-        try { msg = JSON.parse(txt).error || txt; } catch {}
-        toast.error(msg || "Login failed ❌");
+        const err = await parseError(res);
+        console.error("❌ Signup error response:", err);
+        toast.error(err.error || "Signup failed");
         setLoading(false);
         return;
       }
 
       const data = await res.json();
-      // expected shape: { accessToken: string, user: { id, email, is_admin, role? } }
-
+      console.log("✅ Signup success:", data);
+      
       const { accessToken, user } = data;
+      if (accessToken) {
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("user", JSON.stringify(user || {}));
+        localStorage.setItem("role", user?.is_admin ? "admin" : "creator");
+      }
 
-      // store access token in localStorage (simple). For production, keep in memory & use refresh cookie.
-      localStorage.setItem("accessToken", accessToken);
-      // store minimal user info and role
-      localStorage.setItem("user", JSON.stringify(user || {}));
-      localStorage.setItem("role", user?.is_admin ? "admin" : (user?.role || "creator"));
-
-      toast.success("Login successful 🎉");
-
-      // redirect: admin -> /admin else -> home
-      if (user?.is_admin) navigate("/admin");
-      else navigate("/");
+      toast.success("Account created 🎉");
+      navigate("/");
     } catch (err) {
-      console.error("Login error:", err);
-      toast.error("Login failed — check console");
+      console.error("❌ Signup network error:", err);
+      toast.error(`Signup failed: ${err instanceof Error ? err.message : 'Network error'}`);
     } finally {
       setLoading(false);
     }
@@ -66,39 +72,31 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">
-            Login to CreatorPulse
+            Create your account
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div>
+              <Label>Username</Label>
+              <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+            </div>
             <div>
               <Label>Email</Label>
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div>
               <Label>Password</Label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
+              {loading ? "Creating..." : "Sign up"}
             </Button>
           </form>
           <p className="text-sm text-center mt-4">
-            Don’t have an account?{" "}
-            <Link to="/signup" className="text-primary hover:underline">
-              Sign up
+            Already have an account?{" "}
+            <Link to="/login" className="text-primary hover:underline">
+              Login
             </Link>
           </p>
         </CardContent>

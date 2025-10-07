@@ -20,7 +20,7 @@ export default function Profile() {
     joined: "April 27, 2025",
     discordLinked: true,
     stats: {
-      videos: 73,
+      videos: 5,
       earned: "$2",
       views: "401,187"
     },
