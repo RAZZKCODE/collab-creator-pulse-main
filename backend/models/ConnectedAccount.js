@@ -3,9 +3,7 @@ import crypto from 'crypto';
 
 export class ConnectedAccount {
   /**
-   * Finds all connected accounts for a specific user, including their status and profile URL.
-   * @param {number} userId - The ID of the user.
-   * @returns {Promise<Array>} A promise that resolves to an array of connected accounts.
+   * Finds all connected accounts for a user, including all necessary fields.
    */
   static async findByUserId(userId) {
     const query = `
@@ -20,15 +18,8 @@ export class ConnectedAccount {
 
   /**
    * Creates a new account entry with all the user-provided details.
-   * @param {number} userId - The ID of the user.
-   * @param {string} platform - The social media platform (e.g., 'Instagram').
-   * @param {string} username - The user's username on the platform.
-   * @param {string} profileUrl - The URL of the user's profile.
-   * @param {number} followersCount - The number of followers the user has.
-   * @returns {Promise<Object>} A promise that resolves to the newly created account object.
    */
   static async createForVerification(userId, platform, username, profileUrl, followersCount) {
-    // We still generate a code, which can be used for manual verification by an admin later.
     const verificationCode = `cp-${crypto.randomBytes(4).toString('hex')}`;
     
     const query = `
@@ -44,16 +35,13 @@ export class ConnectedAccount {
       RETURNING *
     `;
     
-    const followers = followersCount || 0; // Ensure followers is a number, default to 0
+    const followers = followersCount || 0;
     const { rows } = await pool.query(query, [userId, platform, username, profileUrl, followers, verificationCode]);
     return rows[0];
   }
 
   /**
-   * Deletes a connected account by its ID, ensuring it belongs to the correct user.
-   * @param {number} accountId - The ID of the account to delete.
-   * @param {number} userId - The ID of the user who owns the account.
-   * @returns {Promise<Object|null>} A promise that resolves to the deleted account object, or null if not found.
+   * Deletes a connected account by its ID.
    */
   static async deleteById(accountId, userId) {
     const query = `

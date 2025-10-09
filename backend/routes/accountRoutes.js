@@ -4,13 +4,7 @@ import { ConnectedAccount } from '../models/ConnectedAccount.js';
 
 const router = express.Router();
 
-// --- API Endpoints ---
-
-/**
- * @route   GET /api/accounts
- * @desc    Get all connected accounts for the logged-in user
- * @access  Private
- */
+// GET all connected accounts for the logged-in user
 router.get('/', authenticate, async (req, res) => {
     try {
         const accounts = await ConnectedAccount.findByUserId(req.user.id);
@@ -21,29 +15,26 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-/**
- * @route   POST /api/accounts/initiate-verification
- * @desc    Add a new social account for manual verification
- * @access  Private
- */
+// POST a new account for verification
 router.post('/initiate-verification', authenticate, async (req, res) => {
-    // We now get all required fields directly from the request body
     const { platform, profileUrl, followersCount, username } = req.body;
 
-    // Validate that all required fields are present
     if (!platform || !profileUrl || !username) {
         return res.status(400).json({ error: 'Platform, profile URL, and username are required.' });
     }
 
+    const followers = parseInt(followersCount, 10);
+    if (isNaN(followers) || followers < 0) {
+        return res.status(400).json({ error: 'Please enter a valid, positive follower count.' });
+    }
+
     try {
-        // We no longer need to extract the username from the URL
-        // We pass all the data directly to our model function
         const newAccount = await ConnectedAccount.createForVerification(
             req.user.id,
             platform,
             username,
             profileUrl,
-            followersCount
+            followers
         );
 
         res.status(201).json({
@@ -52,21 +43,15 @@ router.post('/initiate-verification', authenticate, async (req, res) => {
         });
 
     } catch (err) {
-        // This provides a user-friendly error if they try to add the same account twice
-        if (err.code === '23505') { // PostgreSQL unique violation error code
-             return res.status(409).json({ error: `You have already connected a ${platform} account.` });
+        if (err.code === '23505') { // Handles duplicate account error
+            return res.status(409).json({ error: `You have already connected a ${platform} account.` });
         }
         console.error('Error initiating verification:', err.message);
         res.status(500).json({ error: 'Server Error' });
     }
 });
 
-
-/**
- * @route   DELETE /api/accounts/:id
- * @desc    Disconnect a social media account
- * @access  Private
- */
+// DELETE a connected account
 router.delete('/:id', authenticate, async (req, res) => {
     try {
         const accountId = parseInt(req.params.id, 10);
@@ -86,6 +71,5 @@ router.delete('/:id', authenticate, async (req, res) => {
         res.status(500).json({ error: 'Server Error' });
     }
 });
-
 
 export default router;

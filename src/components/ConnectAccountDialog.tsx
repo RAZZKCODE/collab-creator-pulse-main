@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { apiRequest } from "@/utils/api";
-import { Users, AtSign } from 'lucide-react'; // AtSign icon add kiya
+import { Users, AtSign } from 'lucide-react';
 
 interface Props {
     isOpen: boolean;
@@ -17,42 +17,51 @@ interface Props {
 export function ConnectAccountDialog({ isOpen, onClose, onSuccess }: Props) {
     const [platform, setPlatform] = useState('');
     const [profileUrl, setProfileUrl] = useState('');
-    const [username, setUsername] = useState(''); // Username state add kiya
+    const [username, setUsername] = useState('');
     const [followersCount, setFollowersCount] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = async () => {
-        // Validation mein username check add kiya
-        if (!platform || !profileUrl || !followersCount || !username) {
-            toast.error("Please fill all the fields.");
-            return;
-        }
-        setIsLoading(true);
-        try {
-            await apiRequest('/api/accounts/initiate-verification', {
-                method: 'POST',
-                // Body mein username bhejein
-                body: JSON.stringify({ platform, profileUrl, username, followersCount: parseInt(followersCount, 10) }),
-            });
-            toast.success("Account added successfully!");
-            onSuccess();
-            handleClose();
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            toast.error(`Error: ${errorMessage}`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleClose = () => {
-        // Reset state mein username add kiya
         setPlatform('');
         setProfileUrl('');
         setUsername('');
         setFollowersCount('');
         setIsLoading(false);
         onClose();
+    };
+    
+    const handleSubmit = async () => {
+        if (!platform || !profileUrl || !username || !followersCount.trim()) {
+            toast.error("Please fill in all fields.");
+            return;
+        }
+
+        const followers = parseInt(followersCount, 10);
+        if (isNaN(followers) || followers < 0) {
+            toast.error("Please enter a valid follower count.");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await apiRequest('/api/accounts/initiate-verification', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    platform, 
+                    profileUrl, 
+                    username, 
+                    followersCount: followers 
+                }),
+            });
+            toast.success("Account added successfully!");
+            onSuccess(); // Refresh the list
+            handleClose(); // Close the dialog
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to connect account.";
+            toast.error(`Error: ${errorMessage}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -79,7 +88,6 @@ export function ConnectAccountDialog({ isOpen, onClose, onSuccess }: Props) {
                         </Select>
                     </div>
 
-                    {/* Username Input Field */}
                     <div>
                         <Label htmlFor="username">Username</Label>
                         <div className="relative">
@@ -114,15 +122,14 @@ export function ConnectAccountDialog({ isOpen, onClose, onSuccess }: Props) {
                                 onChange={(e) => setFollowersCount(e.target.value)} 
                                 placeholder="e.g., 5200" 
                                 className="pl-9"
+                                min="0"
                             />
                         </div>
                     </div>
                 </div>
                 
                 <DialogFooter>
-                    <Button variant="ghost" onClick={handleClose}>
-                        Cancel
-                    </Button>
+                    <Button variant="ghost" onClick={handleClose}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={isLoading}>
                         {isLoading ? "Adding Account..." : "Add Account"}
                     </Button>
