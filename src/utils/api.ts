@@ -15,29 +15,29 @@ export function getAuthHeader(): Record<string, string> {
  * ✅ FIXED: Properly handle response body reading without "already read" error
  */
 export async function parseError(res: Response) {
-  // ✅ एक ही बार response body को read करें और store करें
+  // ✅ Ek hi baar response body ko read karein aur store karein
   let bodyContent: string | null = null;
   let parsedJson: any = null;
 
   try {
-    // पहले text के रूप में read करें (यह हमेशा काम करता है)
+    // Pehle text ke roop mein read karein (yeh hamesha kaam karta hai)
     bodyContent = await res.text();
 
-    // फिर JSON parse करने की कोशिश करें
+    // Fir JSON parse karne ki koshish karein
     if (bodyContent && bodyContent.trim()) {
       try {
         parsedJson = JSON.parse(bodyContent);
       } catch {
-        // JSON parsing fail होने पर text ही use करेंगे
+        // JSON parsing fail hone par text hi use karenge
         parsedJson = null;
       }
     }
   } catch (error) {
-    // अगर text भी नहीं read हो पाया तो status text use करें
+    // Agar text bhi nahi read ho paya to status text use karein
     return { error: res.statusText || "Network error" };
   }
 
-  // JSON parsed data से error message निकालें या text return करें
+  // JSON parsed data se error message nikaalein ya text return karein
   if (parsedJson && typeof parsedJson === 'object') {
     return {
       error: parsedJson.error || parsedJson.message || bodyContent || res.statusText || "Unknown error"
@@ -49,7 +49,7 @@ export async function parseError(res: Response) {
 
 /**
  * Generic API request helper with auth
- * ✅ FIXED: Better error handling और response parsing
+ * ✅ FIXED: Better error handling aur response parsing
  */
 export async function apiRequest(url: string, options: RequestInit = {}) {
   try {
@@ -67,22 +67,22 @@ export async function apiRequest(url: string, options: RequestInit = {}) {
       throw new Error(error.error || `HTTP ${response.status}`);
     }
 
-    // ✅ Response को properly parse करें
+    // ✅ Response ko properly parse karein
     const contentType = response.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
       try {
         return await response.json();
       } catch {
-        // अगर JSON parsing fail हो तो text return करें
+        // Agar JSON parsing fail ho to text return karein
         return await response.text();
       }
     } else {
-      // Non-JSON responses के लिए text return करें
+      // Non-JSON responses ke liye text return karein
       return await response.text();
     }
   } catch (fetchError) {
-    // Network errors के लिए proper error handling
+    // Network errors ke liye proper error handling
     if (fetchError instanceof Error) {
       throw fetchError;
     }
