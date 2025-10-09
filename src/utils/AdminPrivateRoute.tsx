@@ -1,12 +1,22 @@
-// utils/AdminPrivateRoute.tsx
-import { Navigate } from "react-router-dom";
+// src/utils/AdminPrivateRoute.tsx
+import { Navigate, Outlet } from "react-router-dom";
+import { useUser } from "@/contexts/UserContext";
 
-export function AdminPrivateRoute({ children }: { children: JSX.Element }) {
+export function AdminPrivateRoute() {
+  const { user, loading } = useUser();
   const token = localStorage.getItem("accessToken");
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // While checking user status, you can show a loading indicator
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  // Check for token and admin status
+  if (!token || !user?.is_admin) {
+    // Redirect non-admins to the creator dashboard
+    return <Navigate to="/" />;
+  }
   
-  if (!token) return <Navigate to="/login" />;
-  if (!user.is_admin) return <Navigate to="/" />;
-  
-  return children;
+  // If the user is an admin, render the nested admin page (e.g., /admin/dashboard)
+  return <Outlet />;
 }

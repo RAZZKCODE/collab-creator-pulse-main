@@ -1,8 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, User } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { LogOut, Settings, User, Menu } from "lucide-react";
 import { useNavigate, Outlet } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 
@@ -11,69 +11,72 @@ function Layout() {
   const { user, logout } = useUser();
 
   const handleLogout = () => {
-    console.log("User logged out");
     logout();
     navigate("/login");
   };
 
-  // Get display name - prefer full_name, fallback to username, then email
   const displayName = user?.full_name || user?.username || user?.email?.split('@')[0] || 'Creator';
+  const displayInitial = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'CR';
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        {/* Sidebar */}
+      <div className="min-h-screen w-full bg-muted/40 flex">
         <AppSidebar />
 
-        {/* Main Section */}
         <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="h-16 border-b bg-gradient-card shadow-card flex items-center px-4 md:px-6 justify-between">
-            {/* Sidebar Trigger (for collapse/expand) */}
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="p-2 rounded-lg hover:bg-accent transition-smooth" />
+          <header className="h-16 bg-background/95 backdrop-blur-sm border-b flex items-center px-4 md:px-6 justify-between sticky top-0 z-30">
+            {/* Left Side: Sidebar Toggle and Welcome Message */}
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="p-2 rounded-lg hover:bg-accent transition-colors">
+                <Menu className="h-6 w-6" />
+              </SidebarTrigger>
               <h1 className="hidden sm:block text-lg font-semibold text-foreground">
-                CreatorPulse Dashboard
+                Welcome back, <span className="bg-gradient-hero bg-clip-text text-transparent">{displayName}</span> 👋
               </h1>
             </div>
 
-                        {/* Right Side (User Info + Dropdown) */}
-                        <div className="flex items-center space-x-2 sm:space-x-4">
-              <span className="hidden sm:block text-xs sm:text-sm text-muted-foreground">
-                Welcome back, <span className="font-medium text-foreground">{displayName}</span> 👋
-              </span>
-
-              {/* User Avatar + Dropdown */}
+            {/* Right Side: User Menu */}
+            <div className="flex items-center space-x-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Avatar className="cursor-pointer border shadow-sm">
-                    <AvatarImage src={user?.avatar_url || "https://i.pravatar.cc/40"} alt={displayName} />
-                    <AvatarFallback>
-                      {displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'CR'}
-                    </AvatarFallback>
-                  </Avatar>
+                    <Avatar className="h-9 w-9 cursor-pointer border-2 border-transparent hover:border-primary transition-colors">
+                        <AvatarImage src={user?.avatar_url || "https://i.pravatar.cc/40"} alt={displayName} />
+                        <AvatarFallback className="bg-gradient-primary text-primary-foreground">
+                            {displayInitial}
+                        </AvatarFallback>
+                    </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{displayName}</p>
+                            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                        </div>
+                    </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
-                    <User className="h-4 w-4 mr-2" /> Profile
+                    <User className="h-4 w-4 mr-2" /> 
+                    <span>Profile</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/settings")}>
-                    <Settings className="h-4 w-4 mr-2" /> Settings
+                    <Settings className="h-4 w-4 mr-2" /> 
+                    <span>Settings</span>
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600"
+                    className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
                     onClick={handleLogout}
                   >
-                    <LogOut className="h-4 w-4 mr-2" /> Logout
+                    <LogOut className="h-4 w-4 mr-2" /> 
+                    <span>Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex-1 p-4 md:p-6">
-            {/* 👇 Child routes yaha render honge */}
+          {/* Main Content Area */}
+          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
             <Outlet />
           </main>
         </div>
@@ -82,5 +85,4 @@ function Layout() {
   );
 }
 
-// ✅ ADD THIS DEFAULT EXPORT
 export default Layout;

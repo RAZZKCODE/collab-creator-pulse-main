@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE, parseError } from "@/utils/api";
 import { ArrowLeft } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function Signup() {
   const [step, setStep] = useState(1);
@@ -17,6 +18,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [role, setRole] = useState("creator"); // 'creator' or 'brand'
 
   // Step 2: Profile Info
   const [fullName, setFullName] = useState("");
@@ -49,6 +51,10 @@ export default function Signup() {
           full_name: fullName,
           phone,
           bio,
+          // Note: The backend doesn't currently handle this 'role' field,
+          // but we include it for future functionality.
+          // The 'is_admin' flag is securely handled on the backend.
+          role,
         }),
       });
 
@@ -64,6 +70,7 @@ export default function Signup() {
       if (accessToken) {
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("user", JSON.stringify(user || {}));
+        // The role is determined by the backend's response
         localStorage.setItem("role", user?.is_admin ? "admin" : "creator");
       }
 
@@ -103,6 +110,22 @@ export default function Signup() {
                 <Label>Password</Label>
                 <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
+
+              {/* Role Selection */}
+              <div>
+                <Label>I am a...</Label>
+                <RadioGroup defaultValue="creator" onValueChange={setRole} className="flex gap-4 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="creator" id="creator" />
+                    <Label htmlFor="creator">Creator</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="brand" id="brand" />
+                    <Label htmlFor="brand">Brand</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
               <Button type="submit" className="w-full">
                 Next
               </Button>

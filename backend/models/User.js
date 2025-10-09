@@ -12,16 +12,17 @@ export class User {
       locale, 
       avatar_url, 
       bio,
+      role, // <-- Make sure role is included
       is_active = true,
       is_email_verified = false,
       is_admin = false
     } = userData;
     
     const result = await pool.query(
-      `INSERT INTO users (email, username, password_hash, full_name, phone, locale, avatar_url, bio, is_active, is_email_verified, is_admin)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO users (email, username, password_hash, full_name, phone, locale, avatar_url, bio, role, is_active, is_email_verified, is_admin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [email, username, password_hash, full_name, phone, locale, avatar_url, bio, is_active, is_email_verified, is_admin]
+      [email, username, password_hash, full_name, phone, locale, avatar_url, bio, role, is_active, is_email_verified, is_admin]
     );
     return result.rows[0];
   }

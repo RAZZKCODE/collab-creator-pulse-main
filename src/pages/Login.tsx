@@ -44,8 +44,16 @@ export default function Login() {
       updateUser(user);
       
       toast.success("Login successful 🎉");
-      if (user?.is_admin) navigate("/admin");
-      else navigate("/");
+      
+      // Redirect based on role
+      if (user?.is_admin) {
+        navigate("/admin");
+      } else if (user?.role === 'brand') {
+        navigate("/brand"); // <-- Add brand redirection
+      } else {
+        navigate("/");
+      }
+
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Login failed — check console");

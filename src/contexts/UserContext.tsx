@@ -1,3 +1,4 @@
+// src/contexts/UserContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiRequest } from '@/utils/api';
 
@@ -16,6 +17,7 @@ export interface User {
   is_admin: boolean;
   created_at: string;
   updated_at: string;
+  role?: 'creator' | 'brand'; // Add role to the User type
 }
 
 // Context type
@@ -37,6 +39,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('role');
+    setUser(null);
+    setError(null);
+  };
+
   // Fetch user profile from API
   const fetchUserProfile = async () => {
     try {
@@ -49,13 +60,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(data.user);
         // Update localStorage with complete user data
         localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('role', data.user.is_admin ? 'admin' : data.user.role || 'creator');
       }
     } catch (err) {
       console.error('Failed to fetch user profile:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch user profile');
       
       // If token is invalid, clear everything
-      if (err instanceof Error && err.message.includes('401')) {
+      if (err instanceof Error && (err.message.includes('401') || err.message.includes('Invalid token'))) {
         handleLogout();
       }
     } finally {
@@ -63,22 +75,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Update user data
+  // Update user data - THIS IS THE FIXED PART
   const updateUser = (userData: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    }
-  };
-
-  // Logout function
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('role');
-    setUser(null);
-    setError(null);
+    // If there's new data, create the updated user object
+    // It merges the existing user data (if any) with the new data
+    const updatedUser = { ...(user || {}), ...userData } as User;
+    
+    // Set the state
+    setUser(updatedUser);
+    
+    // Update localStorage
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    localStorage.setItem('role', updatedUser.is_admin ? 'admin' : updatedUser.role || 'creator');
   };
 
   // Load user data on mount
@@ -90,6 +98,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
+        // Attempt to fetch fresh user data on app load to sync changes
+        fetchUserProfile(); 
       } catch (err) {
         console.error('Failed to parse stored user data:', err);
         handleLogout();

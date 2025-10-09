@@ -24,6 +24,7 @@ router.post("/register", async (req, res) => {
       avatar_url,
       bio,
       password,
+      role, // <-- Add role here
     } = req.body;
 
     if (!email || !password) {
@@ -50,6 +51,7 @@ router.post("/register", async (req, res) => {
       locale: locale || 'en',
       avatar_url: avatar_url || null,
       bio: bio || null,
+      role: role || 'creator', // <-- Add role to the create method
       is_active: true,
       is_email_verified: false,
       is_admin: false,
@@ -61,7 +63,7 @@ router.post("/register", async (req, res) => {
 
     // Create token
     const token = jwt.sign(
-      { userId: user.id, isAdmin: user.is_admin },
+      { userId: user.id, isAdmin: user.is_admin, role: user.role }, // <-- Add role to token
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -98,17 +100,18 @@ router.post("/login", async (req, res) => {
 
     // Create token
     const token = jwt.sign(
-      { userId: user.id, isAdmin: user.is_admin },
+      { userId: user.id, isAdmin: user.is_admin, role: user.role }, // <-- Add role to token
       JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // Return minimal user object
+    // Return user object with role
     const safeUser = {
       id: user.id,
       email: user.email,
       username: user.username,
-      is_admin: user.is_admin
+      is_admin: user.is_admin,
+      role: user.role, // <-- Add role to response
     };
     res.json({ accessToken: token, user: safeUser });
   } catch (err) {
